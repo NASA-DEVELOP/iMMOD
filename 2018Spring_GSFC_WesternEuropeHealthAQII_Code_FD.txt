@@ -1,0 +1,2253 @@
+// ***START***
+//iMMOD: An Interactive Model of Mosquito Distribution
+//Western Europe Health and Air Quality II
+//March 30, 2018
+
+//__________________________________________GLOBAL OPTIONS___________________________________________//
+
+//set map center
+Map.setCenter(1, 46, 4);
+
+
+//custom basemap style
+var styles = {
+  'Soft Blue': [
+    {
+      featureType: 'all',
+      stylers: [
+        { saturation: -80 }
+      ]
+    },{
+      featureType: 'road.arterial',
+      elementType: 'geometry',
+      stylers: [
+        { hue: '#00ffee' },
+        { saturation: 50 }
+      ]
+    },{
+      featureType: 'poi.business',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'off' }
+      ]
+    }
+  ]
+};
+
+
+Map.setOptions('satellite', styles);
+
+//__________________________________________SET VARIABLES___________________________________________//
+
+{
+var LST = ee.ImageCollection("MODIS/006/MOD11A1"); //MODIS Land Surface Temperature
+var NDVI = ee.ImageCollection("MODIS/MOD09GA_006_NDVI"); //MODIS Normalized Difference Vegetation Index
+var Precip = ee.ImageCollection("NASA/GPM_L3/IMERG_V04"); //Global Precipitation Measurement
+var Moisture = ee.ImageCollection("NASA/GLDAS/V021/NOAH/G025/T3H"); //Soil Moisture and Humidity
+var Elevation = ee.Image('CGIAR/SRTM90_V4'); //Elevation
+var LandCover = ee.Image("MODIS/051/MCD12Q1/2013_01_01"); //Land Cover
+var PopDens = ee.Image('CIESIN/GPWv4/unwpp-adjusted-population-density/2015'); //Population Density
+var WaterBodies = ee.Image('JRC/GSW1_0/GlobalSurfaceWater'); //Water bodies
+
+var MajRoads = ee.FeatureCollection("users/juliaheslin/MajorRoads"); //Major Roads
+var Rails = ee.FeatureCollection("users/juliaheslin/Rails"); //Railroads
+var Ferry = ee.FeatureCollection("users/juliaheslin/Ferry"); //Ferry Routes
+
+var Outbreaks = ee.FeatureCollection("users/juliaheslin/PublicHealth"); //Mosquito Outbreak Data
+
+var Jun16 = ee.FeatureCollection('ft:1HldmIcHDQ-t8fgMukkXdVA13JCI-KM_HOIOf3FL3'); //June 2016 Citizen Science Data
+var Jul16 = ee.FeatureCollection('ft:1P7718Wxj-bk2RwoMoMvOXT8G-Ojw09Ot7lreKqL7'); //July 2016 Citizen Science Data
+var Aug16 = ee.FeatureCollection('ft:1t9K74TTrn2POnoYl0gww7jkafEaMXcweEdp_ZHpo'); //August 2016 Citizen Science Data
+var Sep16 = ee.FeatureCollection('ft:1TK2iFjap6GU6uDsEuYYEee-iywwMcpq9EpEVsmdp'); //September 2016 Citizen Science Data
+var Oct16 = ee.FeatureCollection('ft:1k8Lgo4Dl6hCe0PUYIbnUP43T3Q2EAUr2lnCXO4Ny'); //October 2016 Citizen Science Data
+var Nov16 = ee.FeatureCollection('ft:1FjrFHYfoO1wjyCErJMqXWV5aIzHuj9mRKdDH9b8X'); //November 2016 Citizen Science Data
+var Dec16 = ee.FeatureCollection('ft:1fmc1OQQKFFzFD3xPaGwxVqU1hmF8aNDb5NR6m_PV'); //December 2016 Citizen Science Data
+var Jan17 = ee.FeatureCollection('ft:17W4A_jb5TI3vIZZ1_m_7OU-DWNw2LNMd43pvnmLU'); //January 2017 Citizen Science Data
+var Feb17 = ee.FeatureCollection('ft:1iWNQ5dX9SAZa8lrVt8bzDUP4T3XtWvJDeYqIer-2'); //Feburary 2017 Citizen Science Data
+var Mar17 = ee.FeatureCollection('ft:1-W3YNJZr3YaQCBHl-kIbOkvP4CQce3VbtbZs1jg-'); //March 2017 Citizen Science Data
+var Apr17 = ee.FeatureCollection('ft:1GTEKcHBLM_qVTGyH-K8LjcmB7I3ex2lAVRllSsGW'); //April 2017 Citizen Science Data
+var May17 = ee.FeatureCollection('ft:1NjjKQF34SWf2X0ph05k-hPx_l_NRmjh3LhuX0mTW'); //May 2017 Citizen Science Data
+var Jun17 = ee.FeatureCollection('ft:1n5OD8ZrSpTOgZiZ3TtB5XBV3slrj-gi3kaVkLLhf'); //June 2017 Citizen Science Data
+var Jul17 = ee.FeatureCollection('ft:1xmK6vDjj5AMYskuKd3WF1E9WveprgjhoN7wZBXU8'); //July 2017 Citizen Science Data
+var Aug17 = ee.FeatureCollection('ft:1274UTOvTke2FS25KgHnbtr8efIcYBBJ5PCH6p42J'); //August 2017 Citizen Science Data
+
+var GLOBE = ee.FeatureCollection('ft:1mgJU3sMIflF-nv9jA25vGUZNj1N1bpR7nCTNdxMx'); //GLOBE data
+
+var countries = ee.FeatureCollection("USDOS/LSIB/2013"); //Country boundaries
+
+// here are some variables we did not use, but may prove useful in the future
+// var cisc = ee.FeatureCollection('ft:1OEaPOntsHvq1y3OJ-rKqakKtJAP6DRRiRh221qEe'); //All Citizen Science Data
+
+// var bel = countries.filter(ee.Filter.inList('name', ['BELGIUM'])); //Belgium boundaries
+// var ita = countries.filter(ee.Filter.inList('name', ['ITALY'])); //Italy boundaries
+// var nld = countries.filter(ee.Filter.inList('name', ['NETHERLANDS'])); //Netherlands boundaries
+// var esp = countries.filter(ee.Filter.inList('name', ['SPAIN'])); //Spain boundaries
+// var europe = countries.filter(ee.Filter.inList('name', ['ALBANIA', 'ANDORRA', 'AUSTRIA', 
+// 'BELARUS', 'BELGIUM', 'BOSNIA & HERZEGOVINA', 'BULGARIA',
+// 'CROATIA', 'CYRPUS','CZECH REPUBLIC',
+// 'DENMARK',
+// 'ESTONIA',
+// 'FINLAND', 'FRANCE',
+// 'GERMANY', 'GREECE',
+// 'HUNGARY',
+// 'ICELAND', 'IRELAND', 'ITALY',
+// 'KOSOVO',
+// 'LATVIA', 'LIECHTENSTEIN', 'LITHUANIA', 'LUXEMBOURG',
+// 'MACEDONIA', 'MALTA', 'MOLDOVA', 'MONACO', 'MONTENEGRO',
+// 'NETHERLANDS', 'NORWAY',
+// 'POLAND', 'PORTUGAL',
+// 'ROMANIA', 'RUSSIA',
+// 'SAN MARINO', 'SERBIA', 'SLOVAKIA', 'SLOVENIA', 'SPAIN', 'SWEDEN', 'SWITZERLAND',
+// 'TURKEY',
+// 'UKRAINE', 'UNITED KINGDOM',
+// 'VATICAN CITY'])); //European countries
+// var StudyArea = countries.filter(ee.Filter.inList('name', ['NETHERLANDS', 'ITALY', 'SPAIN', 'BELGIUM'])); //Study area
+}
+
+//=======================================================================================================//
+//=============================================INTRODUCTION==============================================//
+//=======================================================================================================//
+
+//__________________________________________INTRO PANEL___________________________________________//
+
+//intro panel
+var intro_panel = ui.Panel({
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {width: '350px',
+          backgroundColor: '#150E07',
+          border: '10px ridge #B28355',
+          position: 'top-center',
+          shown: true}})
+  //add a label with the title of the tool, "iMMOD"
+  .add(ui.Label({
+    value: 'iMMOD',
+    style: {fontSize: '36px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            stretch: 'horizontal',
+            color: '#cf8c4a',
+            backgroundColor: '#150E07',
+            //padding: '0px 30px 0px 30px'
+    }}))
+  //add the long title
+  .add(ui.Label({
+    value: 'An Interactive Model of Mosquito Distribution',
+    style: {fontSize: '24px',
+            textAlign: 'center',
+            position: 'top-center',
+            stretch: 'horizontal',
+            color: '#9C5D1F',
+            backgroundColor: '#150E07',
+            //padding: '0px 30px 0px 30px'
+    }}))
+  //add a short description about the tool
+  .add(ui.Label({
+    value: 'The NASA DEVELOP Western Europe Health and Air Quality Team created this open-source, ' +
+    'interactive mosquito habitat suitability modeling application to assist with vector-borne disease '+
+    'management in Western Europe.',
+    style: {fontSize: '14px',
+            textAlign: 'justify',
+            color: '#74491F',
+            backgroundColor: '#150E07',
+            //padding: '10px 30px 10px 30px'
+    }}))
+  //continue the description about the tool
+  .add(ui.Label({
+    value: 'Using the Maximum Entropy (MaxEnt) algorithm, you can visualize how NASA Earth observations '+
+    'and citizen science mosquito observances predict suitable habitat for mosquitoes.',
+    style: {fontSize: '14px',
+            textAlign: 'justify',
+            color: '#74491F',
+            backgroundColor: '#150E07',
+            //padding: '10px 30px 10px 30px'
+    }}));
+//add the panel to the map
+Map.add(intro_panel);
+
+//create a button to hide the panel
+intro_panel.add(ui.Button(
+  {label: 'CLOSE',
+  style: {color: '#000000',
+          stretch: 'horizontal'
+  },
+  onClick: function() {
+  intro_panel.style().set('shown', false);
+  intro_button.style().set('shown', true);  
+  }
+}));
+
+//create a button to reveal the intro panel
+var intro_button = ui.Button({
+  label: 'INTRODUCTION',
+  style: {position: 'top-center',
+          color: '#000000',
+          padding: '0px',
+          shown: false
+  },
+  onClick: function() {
+    //hide the panel
+    intro_button.style().set('shown', false);
+    //reveal the panel
+    intro_panel.style().set('shown', true);
+  }
+});
+
+Map.add(intro_button);
+
+//__________________________________________DATE WRAPPER___________________________________________//
+
+//specify the date range
+var startDate = ee.Date('2016-06-01');
+var endDate = ee.Date('2017-31-08');
+
+//create a function that retrieves monthly data based on specified date range
+var getLayers = function(startDate){
+  var dateRange = ee.Date(startDate).getRange('month');
+  print(dateRange);
+  Map.layers().reset();
+
+//=======================================================================================================//
+//==========================================DATA VISUALIZATION===========================================//
+//=======================================================================================================//
+
+//__________________________________________DATA PROCESSING___________________________________________//
+
+//land surface temperature
+//create a function to convert Kelvin to degrees Celsius
+function convertToCelsius(image){
+  var result = image.toFloat().multiply(0.02)
+              .subtract(273.15);
+  result = result.copyProperties(image); 
+  return result; 
+}
+
+//select and filter land surface temperature data
+var LSTrange = LST.select('LST_Day_1km')
+              .filterDate(dateRange)
+              .mean()
+              .clip(countries);
+              
+//convert to Celsius
+var cLST = ee.Image(convertToCelsius(LSTrange));
+
+//ndvi
+//filter ndvi data
+var NDVIrange = NDVI.filterDate(dateRange)
+                .mean()
+                .clip(countries);
+var cNDVI = ee.Image(NDVIrange);
+
+//precipitation
+//filter precipitation data
+var precipRange = Precip.select('precipitationCal')
+                  .filterDate(dateRange)
+                  .sum()
+                  .clip(countries);
+var cPrecip = ee.Image(precipRange);                  
+
+//humidity
+//select and filter humidity data
+var humidity = Moisture.select('Qair_f_inst')
+                .filterDate(dateRange)
+                .mean()
+                .clip(countries);
+var cHumidity = ee.Image(humidity);
+
+//soil moisture
+//select and filter soil moisture data
+var soilMoisture = Moisture.select('SoilMoi0_10cm_inst')
+                  .filterDate(dateRange)
+                  .mean()
+                  .clip(countries);
+var cSoilMoisture = ee.Image(soilMoisture);
+
+//land cover
+//filter land cover data
+var LandCoverBands = LandCover.select('Land_Cover_Type_2')
+                    .clip(countries);
+var cLandCover = ee.Image(LandCoverBands);
+
+//elevation
+//clip elevation
+var cElevation = Elevation.clip(countries);
+
+//population density
+//clip population density
+var cPopDens = PopDens.clip(countries);
+
+//water bodies
+var water = WaterBodies.select('occurrence')
+            .clip(countries);
+            
+//distance to water
+var cWater = WaterBodies.fastDistanceTransform(256, 'pixels', 'squared_euclidean')
+                .clip(countries);
+
+//transportation routes
+//railways
+var railroad = ee.Image().paint(Rails, 0, 0.1);
+
+//roads
+var roads = ee.Image().paint(MajRoads, 0, 0.1);
+
+//ferries
+var ferries = ee.Image().paint(Ferry, 0, 0.1);
+
+//__________________________________________LEGEND PROPERTIES___________________________________________//
+
+var LSTviz = {min: -5, max: 60, palette: ['#14cec5', '#ffed19', '#ff1b79']};
+
+var NDVIviz = {min: -1, max: 1, palette: ['#b30000', '#e6e600', '#00802b']};
+
+var Precipviz = {min: 0, max: 399, palette: ['#cc3030', '#c89a32', '#b3c42b',
+                                            '#52ab24', '#20ab73', '#2682b8',
+                                            '#00037e']};
+                                            
+var Humidityviz = {min: 0.0060336, max: 0.0114012, palette: ['#eb4c1c', '#f1ae33', '#ede72b',
+                                                '#9dd62f', '#43d83a', '#2fd698',
+                                                '#41b8cc', '#3b82c0']};
+                                                
+var SoilMoistureviz = {min: 0, max: 50, palette: ['#9b792e', '#959b3b', '#74973c',
+                                                    '#3d9f37', '#45a85f', '#3d6fa3']};
+                                                    
+var Elevationviz = {min: 0, max: 3000, palette: ['#aff0e9', '#f8fcb3', '#2fab2b',
+                                                 '#12823f', '#f2a202', '#870801',
+                                                 '#fffcff']};
+                                                 
+var LandCoverviz = {min: 0, max: 17, palette: ['#aec3d6', '#162103', '#235123',
+                                               '#399b38', '#38eb38', '#39723b',
+                                               '#6a2424', '#c3a55f', '#b76124',
+                                               '#d99125', '#92af1f', '#cdb400',
+                                               '#cc0202', '#f7e174', '#743411',]};
+                                               
+var PopDensviz = {min: 0, max: 750, palette: ['#081d58', '#253494', '#225ea8',
+                                              '#1d91c0', '#41b6c4', '#7fcdbb',
+                                              '#c7e9b4', '#edf8b1', '#ffffd9']};
+                                              
+var Waterviz= {min: 0, max: 50, palette: ['#2d77ff', '#1be9ff', '#1bff8b',
+                                          '#9bff2f', '#fbff2f', '#ff7525',
+                                          '#ff2525']};
+
+//__________________________________________ADD LAYERS TO MAP___________________________________________//
+
+var layers = [
+  ui.Map.Layer(cLST, LSTviz, 'Land Surface Temperature', false),
+  ui.Map.Layer(cNDVI, NDVIviz, 'Normalized Difference Vegetation Index', false),
+  ui.Map.Layer(cPrecip, Precipviz, 'Total Precipitation', false),
+  ui.Map.Layer(cHumidity, Humidityviz, 'Humidity', false),
+  ui.Map.Layer(cSoilMoisture, SoilMoistureviz, 'Soil Moisture', false),
+  ui.Map.Layer(cElevation, Elevationviz, 'Elevation', false),
+  ui.Map.Layer(cLandCover, LandCoverviz, 'Land Cover', false),
+  ui.Map.Layer(cPopDens, PopDensviz, 'Population Density', false),
+  //ui.Map.Layer(cWater, Waterviz, 'Distance to Water Bodies', false),
+  //ui.Map.Layer(Outbreaks, {color: 'bc0909'}, 'Mosquito Outbreak Records', false),
+  //ui.Map.Layer(railroad, {palette: '62A7A7'}, 'Railways', false),
+  //ui.Map.Layer(roads, {palette: 'C70606'}, 'Major Roads', false),
+  //ui.Map.Layer(ferries, {palette: '045A8D'}, 'Ferry', false),
+  ];
+Map.layers().reset(layers);
+
+Map.addLayer(railroad, {palette: '62A7A7'}, 'Railways', false);
+Map.addLayer(roads, {palette: 'C70606'}, 'Major Roads', false);
+Map.addLayer(ferries, {palette: '045A8D'}, 'Ferry', false);
+Map.addLayer(Outbreaks, {color: 'bc0909'}, 'Mosquito Outbreak Records', false);
+
+//__________________________________________EXPLORE LAYERS PANEL___________________________________________//
+
+//create a layers panel
+var layers_panel = ui.Panel({
+  style: {width: '275px',
+          position: 'top-left',
+          color: '#002e4d',
+          backgroundColor: '#150E07',
+          border: '10px groove #B28355',
+          shown: false}});
+
+//add layers panel to the map
+ui.root.insert(0, layers_panel);
+
+
+//add a title "Explore Layers"
+layers_panel.add(ui.Label({
+            value: 'Explore Layers',
+            style: {fontSize: '24px',
+            color: '#cf8c4a',
+            backgroundColor: '#150E07',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            stretch: 'horizontal'
+            }}));
+
+//textbox to search by date
+var dateText = ui.Textbox({
+  placeholder: 'yyyy-mm-dd', 
+  onChange: function(text){ }, 
+  style: {width: '100px'
+  }});
+
+//button to search by date
+var dateButton = ui.Button({label: 'Get monthly data...',
+  onClick: function(){
+    getLayers(dateText.getValue());}});
+
+//create a panel to hold the date textbox and button
+var datePanel = ui.Panel({
+  layout: ui.Panel.Layout.flow('horizontal'),
+  widgets: [dateText, dateButton],
+  style:{width: '250px',
+        position: 'top-right',
+        color: '#000000',
+        backgroundColor: '#150E07'
+  }});
+
+//add date textbox and button to layers panel
+layers_panel.add(datePanel);
+
+var places = {
+  Belgium: [4.469936, 50.503887],
+  Italy: [12.56738, 41.87194],
+  Netherlands: [5.291266, 52.132633],
+  Spain: [-3.74922, 40.463667]
+};
+
+var select = ui.Select({
+  items: Object.keys(places),
+  placeholder: ('Choose an area of interest...'),
+  style: {color: '#000000'},
+  onChange: function(key) {
+    Map.setCenter(places[key][0], places[key][1], 6);
+  }
+});
+layers_panel.add(select);
+
+//create a function that retrieves selected map layer based on input date
+var nav = layers.map(function(layer){
+  var name = layer.getName();
+  return ui.Button({
+    label: name,
+    onClick: function(){
+    Map.layers().forEach(function(mapLayer){
+    mapLayer.setShown(mapLayer.getName() == name);});},
+    style: {stretch: 'horizontal'}
+  });});
+
+//add this function to the layers panel 
+layers_panel.add(ui.Panel({
+  widgets: nav,
+  style: {color: '#000000',
+          backgroundColor: '#150E07'
+  }
+}));
+
+//create and add a button to hide the panel
+layers_panel.add(ui.Button(
+  {label: 'CLOSE',
+  style: {color: '#000000',
+          stretch: 'horizontal'},
+  onClick: function() {
+  layers_panel.style().set('shown', false);
+  layers_button.style().set('shown', true);  
+  }
+}));
+
+//create a button to reveal the layers panel
+var layers_button = ui.Button({
+  label: 'EXPLORE DATA',
+  style: {position: 'bottom-left',
+          color: '#000000',
+          padding: '0px'
+          },
+  onClick: function() {
+    //hide the panel
+    layers_button.style().set('shown', false);
+    //reveal the panel
+    layers_panel.style().set('shown', true);
+  }
+});
+
+//add button to the map
+Map.add(layers_button);
+
+//__________________________________________END DATE WRAPPER___________________________________________//
+  
+};
+getLayers(startDate);
+
+//=======================================================================================================//
+//=======================================HABITAT SUITABILITY MODEL=======================================//
+//=======================================================================================================//
+
+//__________________________________________MAXIMUM ENTROPY MODEL___________________________________________//
+
+//visualize model for whole study area
+//set study areas
+var WestEur = ee.Geometry.Rectangle([-9.823036083797, 35.312027706114, 18.426963916203, 54.662027706114]) //Western Europe
+
+//set date ranges
+var janDate = ee.DateRange('2017-01-01', '2017-02-01')
+var febDate = ee.DateRange('2017-02-01', '2017-03-01')
+var marDate = ee.DateRange('2017-03-01', '2017-04-01')
+var aprDate = ee.DateRange('2017-04-01', '2017-05-01')
+var mayDate = ee.DateRange('2017-05-01', '2017-06-01')
+var junDate = ee.DateRange('2016-06-01', '2016-07-01')
+var julDate = ee.DateRange('2016-07-01', '2016-08-01')
+var augDate = ee.DateRange('2016-08-01', '2016-09-01')
+var sepDate = ee.DateRange('2016-09-01', '2016-10-01')
+var octDate = ee.DateRange('2016-10-01', '2016-11-01')
+var novDate = ee.DateRange('2016-11-01', '2016-12-01')
+var decDate = ee.DateRange('2016-12-01', '2017-01-01')
+
+//suitability visualization parameters
+var suitability = {min: 0, max: 1, palette: ['310bff', '053bff', '078cff',
+                                            '01adff', '05d1ff', '0bffd2',
+                                            '0bff78', '07ff1a', 'e4ff09',
+                                            'ffeb03', 'ffa501', 'ff0b00']};
+
+//call function that calculates lst to celsius
+function convertToCelsius(image){
+  var result = image.toFloat().multiply(0.02)
+              .subtract(273.15);
+  result = result.copyProperties(image); 
+  return result; 
+}
+
+//june 2016
+//get monthly variables
+//lst
+var LSTJun = LST.select('LST_Day_1km')
+                .filterDate(junDate)
+                .mean()
+                .clip(WestEur)
+var cLSTJun = ee.Image(convertToCelsius(LSTJun))
+
+//ndvi
+var NDVIJun = NDVI.filterDate(junDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIJun = ee.Image(NDVIJun)
+
+//precipitation
+var precipJun = Precip.select('precipitationCal')
+                      .filterDate(junDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipJun = ee.Image(precipJun)
+
+//humidity
+var humidityJun = Moisture.select('Qair_f_inst')
+                          .filterDate(junDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityJun = ee.Image(humidityJun)
+
+//soil moisture
+var soilMoistureJun = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(junDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureJun = ee.Image(soilMoistureJun)
+
+//elevation
+var ElevationWestEur = Elevation.clip(WestEur)
+var cElevationWestEur = ee.Image(ElevationWestEur)
+
+//normalize environmental variables
+var lstnormalizeJun = cLSTJun.expression('((lst - 11.57857421875002) / (41.460000000000036 - 11.57857421875002))',
+  {'lst': cLSTJun})
+
+var ndvinormalizeJun = cNDVIJun.expression('((ndvi + 0.4753955900669098) / (0.5785678029060364 + 0.4753955900669098))',
+  {'ndvi': cNDVIJun})
+
+var precipnormalizeJun = cPrecipJun.expression('((precip - 0) / (0.3780468702316284 - 0))',
+  {'precip': cPrecipJun})
+
+var humiditynormalizeJun = cHumidityJun.expression('((humidity - 0.006033657118678093) / (0.011514261364936829 - 0.006033657118678093))',
+  {'humidity': cHumidityJun})
+
+var soilMoisturenormalizeJun = cSoilMoistureJun.expression('((soilmoisture - 10.698196411132812) / (40.58652114868164 - 10.698196411132812))',
+  {'soilmoisture': cSoilMoistureJun})
+
+var elevationnormalizeJun = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstJunWeight = lstnormalizeJun.multiply(.202)
+
+var ndviJunWeight = ndvinormalizeJun.multiply(.319)
+
+var precipitationJunWeight = precipnormalizeJun.multiply(.018)
+
+var humidityJunWeight = humiditynormalizeJun.multiply(.289)
+
+var soilMoistureJunWeight = soilMoisturenormalizeJun.multiply(.095)
+
+var elevationJunWeight = elevationnormalizeJun.multiply(.078)
+
+var junWeight = ee.Image.cat([lstJunWeight,
+                              ndviJunWeight,
+                              humidityJunWeight,
+                              soilMoistureJunWeight,
+                              precipitationJunWeight,
+                              elevationJunWeight])
+
+//sum them all together
+var junSuit = junWeight.select('LST_Day_1km')
+                        .add(junWeight.select('NDVI'))
+                        .add(junWeight.select('precipitationCal'))
+                        .add(junWeight.select('Qair_f_inst'))
+                        .add(junWeight.select('SoilMoi0_10cm_inst'))
+                        .add(junWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var junSuitFinal = junSuit.expression('((suitability - 0.24983780631097194) / (0.8433298738762135 - 0.24983780631097194))',
+{'suitability': junSuit})
+Map.addLayer(junSuitFinal, suitability, 'June Suitability', false)
+
+//july 2016
+//lst
+var LSTJul = LST.select('LST_Day_1km')
+                .filterDate(julDate)
+                .mean()
+                .clip(WestEur)
+var cLSTJul = ee.Image(convertToCelsius(LSTJul))
+
+//ndvi
+var NDVIJul = NDVI.filterDate(julDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIJul = ee.Image(NDVIJul)
+
+//precipitation
+var precipJul = Precip.select('precipitationCal')
+                      .filterDate(julDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipJul = ee.Image(precipJul)
+
+//humidity
+var humidityJul = Moisture.select('Qair_f_inst')
+                          .filterDate(julDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityJul = ee.Image(humidityJul)
+
+//soil moisture
+var soilMoistureJul = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(julDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureJul = ee.Image(soilMoistureJul)
+
+//normalize environmental variables
+var lstnormalizeJul = cLSTJul.expression('((lst - 13.503339843750041) / (46.29000000000002 - 13.503339843750041))',
+  {'lst': cLSTJul})
+
+var ndvinormalizeJul = cNDVIJul.expression('((ndvi + 0.6469473242759705) / (0.6553890109062195 + 0.6469473242759705))',
+  {'ndvi': cNDVIJul})
+
+var precipnormalizeJul = cPrecipJul.expression('((precip - 0) / (0.5112987160682678 - 0))',
+  {'precip': cPrecipJul})
+
+var humiditynormalizeJul = cHumidityJul.expression('((humidity - 0.006705486681312323) / (0.013109609484672546 - 0.006705486681312323))',
+  {'humidity': cHumidityJul})
+
+var soilMoisturenormalizeJul = cSoilMoistureJul.expression('((soilmoisture - 7.428398132324219) / (37.3492317199707 - 7.428398132324219))',
+  {'soilmoisture': cSoilMoistureJul})
+
+var elevationnormalizeJul = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstJulWeight = lstnormalizeJul.multiply(.203)
+
+var ndviJulWeight = ndvinormalizeJul.multiply(.032)
+
+var precipitationJulWeight = precipnormalizeJul.multiply(.028)
+
+var humidityJulWeight = humiditynormalizeJul.multiply(.237)
+
+var soilMoistureJulWeight = soilMoisturenormalizeJul.multiply(.075)
+
+var elevationJulWeight = elevationnormalizeJul.multiply(.426)
+
+var julWeight = ee.Image.cat([lstJulWeight,
+                              ndviJulWeight,
+                              humidityJulWeight,
+                              soilMoistureJulWeight,
+                              precipitationJulWeight,
+                              elevationJulWeight])
+
+//sum them all together
+var julSuit = julWeight.select('LST_Day_1km')
+                        .add(julWeight.select('NDVI'))
+                        .add(julWeight.select('precipitationCal'))
+                        .add(julWeight.select('Qair_f_inst'))
+                        .add(julWeight.select('SoilMoi0_10cm_inst'))
+                        .add(julWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var julSuitFinal = julWeight.expression('((suitability - 0.12426219367584529) / (0.8753980447073735 - 0.12426219367584529))',
+{'suitability': julSuit})
+Map.addLayer(julSuitFinal, suitability, 'July Suitability', false)
+
+//august 2016
+//get monthly variables
+//lst
+var LSTAug = LST.select('LST_Day_1km')
+                .filterDate(augDate)
+                .mean()
+                .clip(WestEur)
+var cLSTAug = ee.Image(convertToCelsius(LSTAug))
+
+//ndvi
+var NDVIAug = NDVI.filterDate(augDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIAug = ee.Image(NDVIAug)
+
+//precipitation
+var precipAug = Precip.select('precipitationCal')
+                      .filterDate(augDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipAug = ee.Image(precipAug)
+
+//humidity
+var humidityAug = Moisture.select('Qair_f_inst')
+                          .filterDate(augDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityAug = ee.Image(humidityAug)
+
+//soil moisture
+var soilMoistureAug = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(augDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureAug = ee.Image(soilMoistureAug)
+
+var aug = ee.Image.cat([cLSTAug, cNDVIAug, cPrecipAug, cHumidityAug, cSoilMoistureAug, cElevationWestEur])
+//Map.addLayer(aug, {}, 'aug')
+
+//normalize environmental variables
+var lstnormalizeAug = cLSTAug.expression('((lst - 13.756992187500032) / (44.867246093750055 - 13.756992187500032))',
+  {'lst': cLSTAug})
+  
+var ndvinormalizeAug = cNDVIAug.expression('((ndvi + 0.7319386601448059) / (0.6732020974159241 + 0.7319386601448059))',
+  {'ndvi': cNDVIAug})
+  
+var precipnormalizeAug = cPrecipAug.expression('((precip - 0) / (0.39616936445236206 - 0))',
+  {'precip': cPrecipAug})
+
+var humiditynormalizeAug = cHumidityAug.expression('((humidity - 0.006154877599328756) / (0.013087166473269463 - 0.006154877599328756))',
+  {'humidity': cHumidityAug})
+
+var soilMoisturenormalizeAug = cSoilMoistureAug.expression('((soilmoisture - 7.925228595733643) / (38.385215759277344 - 7.925228595733643))',
+  {'soilmoisture': cSoilMoistureAug})
+
+var elevationnormalizeAug = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstAugWeight = lstnormalizeAug.multiply(.278)
+
+var ndviAugWeight = ndvinormalizeAug.multiply(.024)
+
+var precipitationAugWeight = precipnormalizeAug.multiply(.017)
+
+var humidityAugWeight = humiditynormalizeAug.multiply(.378)
+
+var soilMoistureAugWeight = soilMoisturenormalizeAug.multiply(.090)
+
+var elevationAugWeight = elevationnormalizeAug.multiply(.213)
+
+var augWeight = ee.Image.cat([lstAugWeight,
+                              ndviAugWeight,
+                              humidityAugWeight,
+                              soilMoistureAugWeight,
+                              precipitationAugWeight,
+                              elevationAugWeight])
+
+
+//sum them all together
+var augSuit = augWeight.select('LST_Day_1km')
+                        .add(augWeight.select('NDVI'))
+                        .add(augWeight.select('precipitationCal'))
+                        .add(augWeight.select('Qair_f_inst'))
+                        .add(augWeight.select('SoilMoi0_10cm_inst'))
+                        .add(augWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var augSuitFinal = augWeight.expression('((suitability - 0.14409925205809093) / (0.7904174117248721 - 0.14409925205809093))',
+{'suitability': augSuit})
+Map.addLayer(augSuitFinal, suitability, 'August Suitability', false)
+
+//september 2016
+//get monthly variables
+//lst
+var LSTSep = LST.select('LST_Day_1km')
+                .filterDate(sepDate)
+                .mean()
+                .clip(WestEur)
+var cLSTSep = ee.Image(convertToCelsius(LSTSep))
+
+//ndvi
+var NDVISep = NDVI.filterDate(sepDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVISep = ee.Image(NDVISep)
+
+//precipitation
+var precipSep = Precip.select('precipitationCal')
+                      .filterDate(sepDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipSep = ee.Image(precipSep)
+
+//humidity
+var humiditySep = Moisture.select('Qair_f_inst')
+                          .filterDate(sepDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumiditySep = ee.Image(humiditySep)
+
+//soil moisture
+var soilMoistureSep = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(sepDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureSep = ee.Image(soilMoistureSep)
+
+//normalize environmental variables
+var lstnormalizeSep = cLSTSep.expression('((lst - 9.970000000000027) / (40.51927734375005 - 9.970000000000027))',
+  {'lst': cLSTSep})
+
+var ndvinormalizeSep = cNDVISep.expression('((ndvi + 0.6563261151313782) / (0.6044386625289917 + 0.6563261151313782))',
+  {'ndvi': cNDVISep})
+
+var precipnormalizeSep = cPrecipSep.expression('((precip - 0) / (0.4293142259120941 - 0))',
+  {'precip': cPrecipSep})
+
+var humiditynormalizeSep = cHumiditySep.expression('((humidity - 0.00562438415363431) / (0.01323721744120121 - 0.00562438415363431))',
+  {'humidity': cHumiditySep})
+
+var soilMoisturenormalizeSep = cSoilMoistureSep.expression('((soilmoisture - 6.281616687774658) / (40.909549713134766 - 6.281616687774658))',
+  {'soilmoisture': cSoilMoistureSep})
+
+var elevationnormalizeSep = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstSepWeight = lstnormalizeSep.multiply(.336)
+
+var ndviSepWeight = ndvinormalizeSep.multiply(.015)
+
+var precipitationSepWeight = precipnormalizeSep.multiply(.015)
+
+var humiditySepWeight = humiditynormalizeSep.multiply(.263)
+
+var soilMoistureSepWeight = soilMoisturenormalizeSep.multiply(.206)
+
+var elevationSepWeight = elevationnormalizeSep.multiply(.165)
+
+var sepWeight = ee.Image.cat([lstSepWeight,
+                              ndviSepWeight,
+                              humiditySepWeight,
+                              soilMoistureSepWeight,
+                              precipitationSepWeight,
+                              elevationSepWeight])
+
+
+//sum them all together
+var sepSuit = sepWeight.select('LST_Day_1km')
+                        .add(sepWeight.select('NDVI'))
+                        .add(sepWeight.select('precipitationCal'))
+                        .add(sepWeight.select('Qair_f_inst'))
+                        .add(sepWeight.select('SoilMoi0_10cm_inst'))
+                        .add(sepWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var sepSuitFinal = sepWeight.expression('((suitability - 0.19007236269936886) / (0.751429961425225 - 0.19007236269936886))',
+{'suitability': sepSuit})
+Map.addLayer(sepSuitFinal, suitability, 'September Suitability', false)
+
+//october 2016
+//get monthly variables
+//lst
+var LSTOct = LST.select('LST_Day_1km')
+                .filterDate(octDate)
+                .mean()
+                .clip(WestEur)
+var cLSTOct = ee.Image(convertToCelsius(LSTOct))
+
+//ndvi
+var NDVIOct = NDVI.filterDate(octDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIOct = ee.Image(NDVIOct)
+
+//precipitation
+var precipOct = Precip.select('precipitationCal')
+                      .filterDate(octDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipOct = ee.Image(precipOct)
+
+//humidity
+var humidityOct = Moisture.select('Qair_f_inst')
+                          .filterDate(octDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityOct = ee.Image(humidityOct)
+
+//soil moisture
+var soilMoistureOct = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(octDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureOct = ee.Image(soilMoistureOct)
+
+//normalize environmental variables
+var lstnormalizeOct = cLSTOct.expression('((lst - 2.7915429687500364) / (32.04267578125001 - 2.7915429687500364))',
+  {'lst': cLSTOct})
+
+var ndvinormalizeOct = cNDVIOct.expression('((ndvi + 0.3094300925731659) / (0.4054821729660034 + 0.3094300925731659))',
+  {'ndvi': cNDVIOct})
+
+var precipnormalizeOct = cPrecipOct.expression('((precip - 0.007964178919792175) / (0.7403478026390076 - 0.007964178919792175))',
+  {'precip': cPrecipOct})
+
+var humiditynormalizeOct = cHumidityOct.expression('((humidity - 0.003703861264511943) / (0.0115650100633502 - 0.003703861264511943))',
+  {'humidity': cHumidityOct})
+
+var soilMoisturenormalizeOct = cSoilMoistureOct.expression('((soilmoisture - 11.435077667236328) / (39.074798583984375 - 11.435077667236328))',
+  {'soilmoisture': cSoilMoistureOct})
+
+var elevationnormalizeOct = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstOctWeight = lstnormalizeOct.multiply(.427)
+
+var ndviOctWeight = ndvinormalizeOct.multiply(.001)
+
+var precipitationOctWeight = precipnormalizeOct.multiply(.204)
+
+var humidityOctWeight = humiditynormalizeOct.multiply(.130)
+
+var soilMoistureOctWeight = soilMoisturenormalizeOct.multiply(.068)
+
+var elevationOctWeight = elevationnormalizeOct.multiply(.169)
+
+var octWeight = ee.Image.cat([lstOctWeight,
+                              ndviOctWeight,
+                              humidityOctWeight,
+                              soilMoistureOctWeight,
+                              precipitationOctWeight,
+                              elevationOctWeight])
+
+
+//sum them all together
+var octSuit = octWeight.select('LST_Day_1km')
+                        .add(octWeight.select('NDVI'))
+                        .add(octWeight.select('precipitationCal'))
+                        .add(octWeight.select('Qair_f_inst'))
+                        .add(octWeight.select('SoilMoi0_10cm_inst'))
+                        .add(octWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var octSuitFinal = octWeight.expression('((suitability - 0.06682992855393113) / (0.7654883093700033 - 0.06682992855393113))',
+{'suitability': octSuit})
+Map.addLayer(octSuitFinal, suitability, 'October Suitability', false)
+
+//november 2016
+//get monthly variables
+//lst
+var LSTNov = LST.select('LST_Day_1km')
+                .filterDate(novDate)
+                .mean()
+                .clip(WestEur)
+var cLSTNov = ee.Image(convertToCelsius(LSTNov))
+
+//ndvi
+var NDVINov = NDVI.filterDate(novDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVINov = ee.Image(NDVINov)
+
+//precipitation
+var precipNov = Precip.select('precipitationCal')
+                      .filterDate(novDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipNov = ee.Image(precipNov)
+
+//humidity
+var humidityNov = Moisture.select('Qair_f_inst')
+                          .filterDate(novDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityNov = ee.Image(humidityNov)
+
+//soil moisture
+var soilMoistureNov = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(novDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureNov = ee.Image(soilMoistureNov)
+
+//normalize environmental variables
+var lstnormalizeNov = cLSTNov.expression('((lst + 6.725996093749984) / (22.110000000000014 + 6.725996093749984))',
+  {'lst': cLSTNov})
+
+var ndvinormalizeNov = cNDVINov.expression('((ndvi + 0.42436763644218445) / (0.40949317812919617 + 0.42436763644218445))',
+  {'ndvi': cNDVINov})
+
+var precipnormalizeNov = cPrecipNov.expression('((precip - 0.018697917461395264) / (1.176440954208374 - 0.018697917461395264))',
+  {'precip': cPrecipNov})
+
+var humiditynormalizeNov = cHumidityNov.expression('((humidity - 0.0032352569978684187) / (0.008859861642122269 - 0.0032352569978684187))',
+  {'humidity': cHumidityNov})
+
+var soilMoisturenormalizeNov = cSoilMoistureNov.expression('((soilmoisture - 15.119162559509277) / (39.494873046875 - 15.119162559509277))',
+  {'soilmoisture': cSoilMoistureNov})
+
+var elevationnormalizeNov = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstNovWeight = lstnormalizeNov.multiply(.289)
+
+var ndviNovWeight = ndvinormalizeNov.multiply(.053)
+
+var precipitationNovWeight = precipnormalizeNov.multiply(.012)
+
+var humidityNovWeight = humiditynormalizeNov.multiply(.013)
+
+var soilMoistureNovWeight = soilMoisturenormalizeNov.multiply(.193)
+
+var elevationNovWeight = elevationnormalizeNov.multiply(.439)
+
+var novWeight = ee.Image.cat([lstNovWeight,
+                              ndviNovWeight,
+                              humidityNovWeight,
+                              soilMoistureNovWeight,
+                              precipitationNovWeight,
+                              elevationNovWeight])
+
+//sum them all together
+var novSuit = novWeight.select('LST_Day_1km')
+                        .add(novWeight.select('NDVI'))
+                        .add(novWeight.select('precipitationCal'))
+                        .add(novWeight.select('Qair_f_inst'))
+                        .add(novWeight.select('SoilMoi0_10cm_inst'))
+                        .add(novWeight.select('constant'))
+                        .rename('suitability')
+                        
+//normalize on a 0 to 1 scale
+var novSuitFinal = novWeight.expression('((suitability - 0.20010860391131763) / (0.8924072863104774 - 0.20010860391131763))',
+{'suitability': novSuit})
+Map.addLayer(novSuitFinal, suitability, 'November Suitability', false)
+
+//december 2016
+//get monthly variables
+//lst
+var LSTDec = LST.select('LST_Day_1km')
+                .filterDate(decDate)
+                .mean()
+                .clip(WestEur)
+var cLSTDec = ee.Image(convertToCelsius(LSTDec))
+
+//ndvi
+var NDVIDec = NDVI.filterDate(decDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIDec = ee.Image(NDVIDec)
+
+//precipitation
+var precipDec = Precip.select('precipitationCal')
+                      .filterDate(decDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipDec = ee.Image(precipDec)
+
+//humidity
+var humidityDec = Moisture.select('Qair_f_inst')
+                          .filterDate(decDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityDec = ee.Image(humidityDec)
+
+//soil moisture
+var soilMoistureDec = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(decDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureDec = ee.Image(soilMoistureDec)
+
+//normalize environmental variables
+var lstnormalizeDec = cLSTDec.expression('((lst + 6.141328124999973) / (16.71261718750003 + 6.141328124999973))',
+  {'lst': cLSTDec})
+
+var ndvinormalizeDec = cNDVIDec.expression('((ndvi + 0.5211775302886963) / (0.5233295559883118 + 0.5211775302886963))',
+  {'ndvi': cNDVIDec})
+
+var precipnormalizeDec = cPrecipDec.expression('((precip - 0.00007560483936686069) / (0.6289146542549133 - 0.00007560483936686069))',
+  {'precip': cPrecipDec})
+
+var humiditynormalizeDec = cHumidityDec.expression('((humidity - 0.002169196028262377) / (0.007897240109741688 - 0.002169196028262377))',
+  {'humidity': cHumidityDec})
+
+var soilMoisturenormalizeDec = cSoilMoistureDec.expression('((soilmoisture - 16.297508239746094) / (41.98208999633789 - 16.297508239746094))',
+  {'soilmoisture': cSoilMoistureDec})
+
+var elevationnormalizeDec = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstDecWeight = lstnormalizeDec.multiply(.127)
+
+var ndviDecWeight = ndvinormalizeDec.multiply(.027)
+
+var precipitationDecWeight = precipnormalizeDec.multiply(.037)
+
+var humidityDecWeight = humiditynormalizeDec.multiply(.105)
+
+var soilMoistureDecWeight = soilMoisturenormalizeDec.multiply(.043)
+
+var elevationDecWeight = elevationnormalizeDec.multiply(.661)
+
+var decWeight = ee.Image.cat([lstDecWeight,
+                              ndviDecWeight,
+                              humidityDecWeight,
+                              soilMoistureDecWeight,
+                              precipitationDecWeight,
+                              elevationDecWeight])
+
+//sum them all together
+var decSuit = decWeight.select('LST_Day_1km')
+                        .add(decWeight.select('NDVI'))
+                        .add(decWeight.select('precipitationCal'))
+                        .add(decWeight.select('Qair_f_inst'))
+                        .add(decWeight.select('SoilMoi0_10cm_inst'))
+                        .add(decWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var decSuitFinal = decWeight.expression('((suitability - 0.07790186269834384) / (0.9492467716025556 - 0.07790186269834384))',
+{'suitability': decSuit})
+Map.addLayer(decSuitFinal, suitability, 'December Suitability', false)
+
+//january 2017
+//get monthly variables
+//lst
+var LSTJan = LST.select('LST_Day_1km')
+                .filterDate(janDate)
+                .mean()
+                .clip(WestEur)
+var cLSTJan = ee.Image(convertToCelsius(LSTJan))
+
+//ndvi
+var NDVIJan = NDVI.filterDate(janDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIJan = ee.Image(NDVIJan)
+
+//precipitation
+var precipJan = Precip.select('precipitationCal')
+                      .filterDate(janDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipJan = ee.Image(precipJan)
+
+//humidity
+var humidityJan = Moisture.select('Qair_f_inst')
+                          .filterDate(janDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityJan = ee.Image(humidityJan)
+
+//soil moisture
+var soilMoistureJan = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(janDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureJan = ee.Image(soilMoistureJan)
+
+//normalize environmental variables
+var lstnormalizeJan = cLSTJan.expression('((lst + 12.553574218749986) / (15.76925781250003 + 12.553574218749986))',
+  {'lst': cLSTJan})
+
+var ndvinormalizeJan = cNDVIJan.expression('((ndvi + 0.6073019504547119) / (0.516202986240387 + 0.6073019504547119))',
+  {'ndvi': cNDVIJan})
+
+var precipnormalizeJan = cPrecipJan.expression('((precip - 0.0007056451868265867) / (0.3643229305744171 - 0.0007056451868265867))',
+  {'precip': cPrecipJan})
+
+var humiditynormalizeJan = cHumidityJan.expression('((humidity - 0.0016217473894357681) / (0.006002950482070446 - 0.0016217473894357681))',
+  {'humidity': cHumidityJan})
+
+var soilMoisturenormalizeJan = cSoilMoistureJan.expression('((soilmoisture - 16.8762264251709) / (45.31905746459961 - 16.8762264251709))',
+  {'soilmoisture': cSoilMoistureJan})
+
+var elevationnormalizeJan = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstJanWeight = lstnormalizeJan.multiply(.007)
+
+var ndviJanWeight = ndvinormalizeJan.multiply(.003)
+
+var precipitationJanWeight = precipnormalizeJan.multiply(.015)
+
+var humidityJanWeight = humiditynormalizeJan.multiply(.015)
+
+var soilMoistureJanWeight = soilMoisturenormalizeJan.multiply(.041)
+
+var elevationJanWeight = elevationnormalizeJan.multiply(.919)
+
+var janWeight = ee.Image.cat([lstJanWeight,
+                              ndviJanWeight,
+                              humidityJanWeight,
+                              soilMoistureJanWeight,
+                              precipitationJanWeight,
+                              elevationJanWeight])
+
+//sum them all together
+var janSuit = janWeight.select('LST_Day_1km')
+                        .add(janWeight.select('NDVI'))
+                        .add(janWeight.select('precipitationCal'))
+                        .add(janWeight.select('Qair_f_inst'))
+                        .add(janWeight.select('SoilMoi0_10cm_inst'))
+                        .add(janWeight.select('constant'))
+                        .rename('suitability')
+                        
+//normalize on a 0 to 1 scale
+var janSuitFinal = janWeight.expression('((suitability - 0.03231113769761511) / (1.0123558512155415 - 0.03231113769761511))',
+{'suitability': janSuit})
+Map.addLayer(janSuitFinal, suitability, 'January Suitability', false)
+
+//february 2017
+//get monthly variables
+//lst
+var LSTFeb = LST.select('LST_Day_1km')
+                .filterDate(febDate)
+                .mean()
+                .clip(WestEur)
+var cLSTFeb = ee.Image(convertToCelsius(LSTFeb))
+
+//ndvi
+var NDVIFeb = NDVI.filterDate(febDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIFeb = ee.Image(NDVIFeb)
+
+//precipitation
+var precipFeb = Precip.select('precipitationCal')
+                      .filterDate(febDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipFeb = ee.Image(precipFeb)
+
+//humidity
+var humidityFeb = Moisture.select('Qair_f_inst')
+                          .filterDate(febDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityFeb = ee.Image(humidityFeb)
+
+//soil moisture
+var soilMoistureFeb = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(febDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureFeb = ee.Image(soilMoistureFeb)
+
+//normalize environmental variables
+var lstnormalizeFeb = cLSTFeb.expression('((lst + 7.934804687499991) / (19.16529296875001 + 7.934804687499991))',
+  {'lst': cLSTFeb})
+
+var ndvinormalizeFeb = cNDVIFeb.expression('((ndvi + 0.32261842489242554) / (0.3689158856868744 + 0.32261842489242554))',
+  {'ndvi': cNDVIFeb})
+
+var precipnormalizeFeb = cPrecipFeb.expression('((precip - 0.004547991324216127) / (0.4130914807319641 - 0.004547991324216127))',
+  {'precip': cPrecipFeb})
+
+var humiditynormalizeFeb = cHumidityFeb.expression('((humidity - 0.0028033393900841475) / (0.007518071681261063 - 0.0028033393900841475))',
+  {'humidity': cHumidityFeb})
+
+var soilMoisturenormalizeFeb = cSoilMoistureFeb.expression('((soilmoisture - 19.100465774536133) / (46.413734436035156 - 19.100465774536133))',
+  {'soilmoisture': cSoilMoistureFeb})
+
+var elevationnormalizeFeb = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstFebWeight = lstnormalizeFeb.multiply(.018)
+
+var ndviFebWeight = ndvinormalizeFeb.multiply(.019)
+
+var precipitationFebWeight = precipnormalizeFeb.multiply(.07)
+
+var humidityFebWeight = humiditynormalizeFeb.multiply(.015)
+
+var soilMoistureFebWeight = soilMoisturenormalizeFeb.multiply(.021)
+
+var elevationFebWeight = elevationnormalizeFeb.multiply(.858)
+
+var febWeight = ee.Image.cat([lstFebWeight,
+                              ndviFebWeight,
+                              humidityFebWeight,
+                              soilMoistureFebWeight,
+                              precipitationFebWeight,
+                              elevationFebWeight])
+
+//sum them all together
+var febSuit = febWeight.select('LST_Day_1km')
+                        .add(febWeight.select('NDVI'))
+                        .add(febWeight.select('precipitationCal'))
+                        .add(febWeight.select('Qair_f_inst'))
+                        .add(febWeight.select('SoilMoi0_10cm_inst'))
+                        .add(febWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var febSuitFinal = febWeight.expression('((suitability - 0.03947809915516512) / (0.9933700178717277 - 0.03947809915516512))',
+{'suitability': febSuit})
+Map.addLayer(febSuitFinal, suitability, 'February Suitability', false)
+
+//march 2017
+//get monthly variables
+//lst
+var LSTMar = LST.select('LST_Day_1km')
+                .filterDate(marDate)
+                .mean()
+                .clip(WestEur)
+var cLSTMar = ee.Image(convertToCelsius(LSTMar))
+
+//ndvi
+var NDVIMar = NDVI.filterDate(marDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIMar = ee.Image(NDVIMar)
+
+//precipitation
+var precipMar = Precip.select('precipitationCal')
+                      .filterDate(marDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipMar = ee.Image(precipMar)
+
+//humidity
+var humidityMar = Moisture.select('Qair_f_inst')
+                          .filterDate(marDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityMar = ee.Image(humidityMar)
+
+//soil moisture
+var soilMoistureMar = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(marDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureMar = ee.Image(soilMoistureMar)
+
+//normalize environmental variables
+var lstnormalizeMar = cLSTMar.expression('((lst + 2.1763671874999773) / (26.821425781250014 + 2.1763671874999773))',
+  {'lst': cLSTMar})
+
+var ndvinormalizeMar = cNDVIMar.expression('((ndvi + 0.5246750712394714) / (0.5466815233230591 + 0.5246750712394714))',
+  {'ndvi': cNDVIMar})
+
+var precipnormalizeMar = cPrecipMar.expression('((precip - 0.0004284274182282388) / (0.3176747262477875 - 0.0004284274182282388))',
+  {'precip': cPrecipMar})
+
+var humiditynormalizeMar = cHumidityMar.expression('((humidity - 0.003631564322859049) / (0.007250495720654726 - 0.003631564322859049))',
+  {'humidity': cHumidityMar})
+
+var soilMoisturenormalizeMar = cSoilMoistureMar.expression('((soilmoisture - 13.947525978088379) / (43.1034049987793 - 13.947525978088379))',
+  {'soilmoisture': cSoilMoistureMar})
+  
+var elevationnormalizeMar = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstMarWeight = lstnormalizeMar.multiply(.199)
+
+var ndviMarWeight = ndvinormalizeMar.multiply(.024)
+
+var precipitationMarWeight = precipnormalizeMar.multiply(.156)
+
+var humidityMarWeight = humiditynormalizeMar.multiply(.061)
+
+var soilMoistureMarWeight = soilMoisturenormalizeMar.multiply(.012)
+
+var elevationMarWeight = elevationnormalizeMar.multiply(.548)
+
+var marWeight = ee.Image.cat([lstMarWeight,
+                              ndviMarWeight,
+                              humidityMarWeight,
+                              soilMoistureMarWeight,
+                              precipitationMarWeight,
+                              elevationMarWeight])
+
+//sum them all together
+var marSuit = marWeight.select('LST_Day_1km')
+                        .add(marWeight.select('NDVI'))
+                        .add(marWeight.select('precipitationCal'))
+                        .add(marWeight.select('Qair_f_inst'))
+                        .add(marWeight.select('SoilMoi0_10cm_inst'))
+                        .add(marWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var marSuitFinal = marWeight.expression('((suitability - 0.04864219481211873) / (0.8406829328569105 - 0.04864219481211873))',
+{'suitability': marSuit})
+Map.addLayer(marSuitFinal, suitability, 'March Suitability', false)
+
+//april 2017
+//get monthly variables
+//lst
+var LSTApr = LST.select('LST_Day_1km')
+                .filterDate(aprDate)
+                .mean()
+                .clip(WestEur)
+var cLSTApr = ee.Image(convertToCelsius(LSTApr))
+
+//ndvi
+var NDVIApr = NDVI.filterDate(aprDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIApr = ee.Image(NDVIApr)
+
+//precipitation
+var precipApr = Precip.select('precipitationCal')
+                      .filterDate(aprDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipApr = ee.Image(precipApr)
+
+//humidity
+var humidityApr = Moisture.select('Qair_f_inst')
+                          .filterDate(aprDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityApr = ee.Image(humidityApr)
+
+//soil moisture
+var soilMoistureApr = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(aprDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureApr = ee.Image(soilMoistureApr)
+
+//normalize environmental variables
+var lstnormalizeApr = cLSTApr.expression('((lst - 1.9925000000000068) / (31.769042968750057 - 1.9925000000000068))',
+  {'lst': cLSTApr})
+
+var ndvinormalizeApr = cNDVIApr.expression('((ndvi + 0.6835917234420776) / (0.5699182152748108 + 0.6835917234420776))',
+  {'ndvi': cNDVIApr})
+
+var precipnormalizeApr = cPrecipApr.expression('((precip - 0.0004340277810115367) / (0.19513021409511566 - 0.0004340277810115367))',
+  {'precip': cPrecipApr})
+
+var humiditynormalizeApr = cHumidityApr.expression('((humidity - 0.00368473376147449) / (0.008280765265226364 - 0.00368473376147449))',
+  {'humidity': cHumidityApr})
+
+var soilMoisturenormalizeApr = cSoilMoistureApr.expression('((soilmoisture - 12.621930122375488) / (43.89396286010742 - 12.621930122375488))',
+  {'soilmoisture': cSoilMoistureApr})
+
+var elevationnormalizeApr = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstAprWeight = lstnormalizeApr.multiply(.056)
+
+var ndviAprWeight = ndvinormalizeApr.multiply(.067)
+
+var precipitationAprWeight = precipnormalizeApr.multiply(.037)
+
+var humidityAprWeight = humiditynormalizeApr.multiply(.027)
+
+var soilMoistureAprWeight = soilMoisturenormalizeApr.multiply(.021)
+
+var elevationAprWeight = elevationnormalizeApr.multiply(.792)
+
+var aprWeight = ee.Image.cat([lstAprWeight,
+                              ndviAprWeight,
+                              humidityAprWeight,
+                              soilMoistureAprWeight,
+                              precipitationAprWeight,
+                              elevationAprWeight])
+
+//sum them all together
+var aprSuit = aprWeight.select('LST_Day_1km')
+                        .add(aprWeight.select('NDVI'))
+                        .add(aprWeight.select('precipitationCal'))
+                        .add(aprWeight.select('Qair_f_inst'))
+                        .add(aprWeight.select('SoilMoi0_10cm_inst'))
+                        .add(aprWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var aprSuitFinal = aprWeight.expression('((suitability - 0.05822913175885992) / (0.9761820332067099 - 0.05822913175885992))',
+{'suitability': aprSuit})
+Map.addLayer(aprSuitFinal, suitability, 'April Suitability', false)
+
+//may 2017
+//get monthly variables
+//lst
+var LSTMay = LST.select('LST_Day_1km')
+                .filterDate(mayDate)
+                .mean()
+                .clip(WestEur)
+var cLSTMay = ee.Image(convertToCelsius(LSTMay))
+
+//ndvi
+var NDVIMay = NDVI.filterDate(mayDate)
+                  .mean()
+                  .clip(WestEur)
+var cNDVIMay = ee.Image(NDVIMay)
+
+//precipitation
+var precipMay = Precip.select('precipitationCal')
+                      .filterDate(mayDate)
+                      .mean()
+                      .clip(WestEur)
+var cPrecipMay = ee.Image(precipMay)
+
+//humidity
+var humidityMay = Moisture.select('Qair_f_inst')
+                          .filterDate(mayDate)
+                          .mean()
+                          .clip(WestEur)
+var cHumidityMay = ee.Image(humidityMay)
+
+//soil moisture
+var soilMoistureMay = Moisture.select('SoilMoi0_10cm_inst')
+                              .filterDate(mayDate)
+                              .mean()
+                              .clip(WestEur);
+var cSoilMoistureMay = ee.Image(soilMoistureMay)
+
+//normalize environmental variables
+var lstnormalizeMay = cLSTMay.expression('((lst - 5.805644531250039) / (38.746152343750055 - 5.805644531250039))',
+  {'lst': cLSTMay})
+  
+var ndvinormalizeMay = cNDVIMay.expression('((ndvi + 0.5299306511878967) / (0.5744581818580627 + 0.5299306511878967))',
+  {'ndvi': cNDVIMay})
+
+var precipnormalizeMay = cPrecipMay.expression('((precip - 0.00016801075253169984) / (0.48912131786346436 - 0.00016801075253169984))',
+  {'precip': cPrecipMay})
+
+var humiditynormalizeMay = cHumidityMay.expression('((humidity - 0.005282266531139612) / (0.009643768891692162 - 0.005282266531139612))',
+  {'humidity': cHumidityMay})
+
+var soilMoisturenormalizeMay = cSoilMoistureMay.expression('((soilmoisture - 8.977263450622559) / (41.53260803222656 - 8.977263450622559))',
+  {'soilmoisture': cSoilMoistureMay})
+
+var elevationnormalizeMay = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+  {'elevation': cElevationWestEur})
+
+//apply percent contribution weights to environmental variables
+var lstMayWeight = lstnormalizeMay.multiply(.133)
+
+var ndviMayWeight = ndvinormalizeMay.multiply(.211)
+
+var precipitationMayWeight = precipnormalizeMay.multiply(.146)
+
+var humidityMayWeight = humiditynormalizeMay.multiply(.068)
+
+var soilMoistureMayWeight = soilMoisturenormalizeMay.multiply(.034)
+
+var elevationMayWeight = elevationnormalizeMay.multiply(.407)
+
+var mayWeight = ee.Image.cat([lstMayWeight,
+                              ndviMayWeight,
+                              humidityMayWeight,
+                              soilMoistureMayWeight,
+                              precipitationMayWeight,
+                              elevationMayWeight])
+
+//sum them all together
+var maySuit = mayWeight.select('LST_Day_1km')
+                        .add(mayWeight.select('NDVI'))
+                        .add(mayWeight.select('precipitationCal'))
+                        .add(mayWeight.select('Qair_f_inst'))
+                        .add(mayWeight.select('SoilMoi0_10cm_inst'))
+                        .add(mayWeight.select('constant'))
+                        .rename('suitability')
+
+//normalize on a 0 to 1 scale
+var maySuitFinal = mayWeight.expression('((suitability - 0.1513682426598958) / (0.8329625483864924 - 0.1513682426598958))',
+{'suitability': maySuit})
+Map.addLayer(maySuitFinal, suitability, 'May Suitability', false)
+
+
+//=======================================================================================================//
+//===================================CREATING YOUR OWN SUITABILITY MAP===================================//
+//=======================================================================================================//
+
+// THIS NEXT SECTION OUTLINES HOW YOU CAN REPLICATE HABITAT SUITABILITY FOR FUTURE MONTHS
+
+
+// IF YOU ARE UNFAMILIAR WITH GOOGLE EARTH ENGINE, IT MAY BEHOOVE YOU TO COMPLETE SOME OF THE
+// INTRODUCTION TO GOOGLE EARTH ENGINE TUTORIAL (CONDENSED), WHICH CAN BE ACCESSED HERE:
+// https://developers.google.com/earth-engine/tutorials
+// IN ORDER TO FAMILIARIZE YOURSELF WITH THE API
+
+
+// THINK YOU GOT IT? GOOD, LET'S MOVE ON!
+
+
+// STARTING WITH THE TEMPLATE BELOW, YOU CAN CHANGE THE ENVIRONMENTAL VARIABLE INPUTS
+// AND WEIGHT THEM ACCORDING TO THE RESULTS OF THE MAXENT MODEL.
+
+
+//______________SELECTING A DATE RANGE FOR YOUR SUITABILITY MAP______________//
+
+// FIRST, YOU NEED TO SELECT THE MONTH YOU ARE INTERESTED IN VISUALIZING. WE ALREADY DEFINED THE DATE RANGE
+// FROM JUNE 2016-MAY 2017 PREVIOUSLY. IN ORDER TO SET THE DATE RANGE OF THE MONTH YOU
+// WISH TO VISUALIZE, BACKSPACE THE "//" IN FRONT OF THE MONTH. THEN, CHANGE THE DATES IN
+// THE PARANTHESES TO THE FIRST DAY OF THE MONTH OF INTEREST TO THE FIRST DAY OF THE FOLLOWING MONTH.
+
+
+//______________START SELECT DATE RANGE______________//
+// janDate = ee.DateRange('2017-01-01', '2017-02-01')
+// febDate = ee.DateRange('2017-02-01', '2017-03-01')
+// marDate = ee.DateRange('2017-03-01', '2017-04-01')
+// aprDate = ee.DateRange('2017-04-01', '2017-05-01')
+// mayDate = ee.DateRange('2017-05-01', '2017-06-01')
+// junDate = ee.DateRange('2016-06-01', '2016-07-01')
+// julDate = ee.DateRange('2016-07-01', '2016-08-01')
+// augDate = ee.DateRange('2016-08-01', '2016-09-01')
+// sepDate = ee.DateRange('2016-09-01', '2016-10-01')
+// octDate = ee.DateRange('2016-10-01', '2016-11-01')
+// novDate = ee.DateRange('2016-11-01', '2016-12-01')
+// decDate = ee.DateRange('2016-12-01', '2017-01-01')
+//______________END SELECT DATE RANGE______________//
+
+
+//______________SELECTING AND PROCESSING THE ENVIRONMENTAL VARIABLES______________//
+
+// THE FIRST VARIABLE WE ARE GOING TO FOCUS ON IS LAND SURFACE TEMPERATURE,
+// OR LST FOR SHORT. THE VARIABLE NOMENCLATURE FOR LST AND OTHER ENVIRONMENTAL
+// VARIABLES ARE SET UP AS 'var ENVIRONMENTALVARIABLEMonth' (e.g. LSTMay).
+// WE PROCESS THE DATA BY IMPLEMENTING A RANGE OF FUNCTIONS TO OBTAIN THE 
+// MONTHLY AVERAGE OF EACH ENVIRONMENTAL VARIABLE. AFTER APPLYING THE APPROPRIATE
+// FUNCTIONS, WE SET THE NEW VARIABLE UP WITH THIS NOMENCLATURE:
+// 'var cENVIRONMENTALVARIABLEMonth' (e.g. cLSTMay). (SIDENOTE: THE 'c' MEANS
+// NOTHING, WE JUST NEEDED TO CALL IT BY A NEW VARIABLE NAME!)
+
+// SO, THE ONLY THINGS THAT NEEDS TO BE CHANGE IN THESE SECTIONS ARE
+// THE DATE RANGE VARIABLE WITHIN THE .filterDate() FUNCTION
+// AND THE VARIABLE NAMES TO CORRESPOND WITH THE APPROPRIATE MONTH.
+
+// AFTER ENTERING ALL OF THE APPROPRIATE VARIABLES, GET RID OF THE "//"
+// IN AN ENTIRE SECTION BY SELECTING THE LINES OF CODE, THEN HITTING
+// 'CTRL + /' (FOR PC) OR 'COMMAND + /' (FOR MAC).
+
+
+//______________START OF SELECTING AND PROCESSING______________//
+// //get monthly variables
+// //lst
+// var LSTMay = LST.select('LST_Day_1km') // CHANGE 'LSTMay' TO DESIRED MONTH (LSTMonth) AND REPEAT FOR SUBSEQUENT VARIABLES
+//                 .filterDate(mayDate) // CHANGE THE DATE RANGE TO CORRESPOND WITH MONTH OF INTEREST AND REPEAT FOR SUBSEQUENT VARIABLES
+//                 .mean()
+//                 .clip(WestEur)
+// var cLSTMay = ee.Image(convertToCelsius(LSTMay)) // CHANGE 'cLSTMAY' TO cLSTMonth AND 'LSTMay' TO SELECTED VARIABLE ABOVE AND REPEAT FOR SUBSEQUENT VARIABLES
+                                                     
+// //ndvi
+// var NDVIMay = NDVI.filterDate(mayDate)
+//                   .mean()
+//                   .clip(WestEur)
+// var cNDVIMay = ee.Image(NDVIMay)
+
+// //precipitation
+// var precipMay = Precip.select('precipitationCal')
+//                       .filterDate(mayDate)
+//                       .mean()
+//                       .clip(WestEur)
+// var cPrecipMay = ee.Image(precipMay)
+
+// //humidity
+// var humidityMay = Moisture.select('Qair_f_inst')
+//                           .filterDate(mayDate)
+//                           .mean()
+//                           .clip(WestEur)
+// var cHumidityMay = ee.Image(humidityMay)
+
+// //soil moisture
+// var soilMoistureMay = Moisture.select('SoilMoi0_10cm_inst')
+//                               .filterDate(mayDate)
+//                               .mean()
+//                               .clip(WestEur);
+// var cSoilMoistureMay = ee.Image(soilMoistureMay)
+//______________END OF SELECTING AND PROCESSING______________//
+
+
+// YOU MADE IT THROUGH THE FIRST PART! LET'S KEEP GOING...
+
+
+//______________NORMALIZING THE ENVIRONMENTAL VARIABLES______________//
+
+// IN ORDER TO NORMALIZE THE VARIABLES ON A ZERO TO ONE SCALE,
+// YOU NEED TO RETRIEVE THE MINIMUM AND MAXIMUM VALUES FOR EACH VARIABLE.
+// USE THE TEMPLATE BELOW IN ORDER TO PRINT THE MINIMUM AND MAXIMUM
+// VALUES IN THE CONSOLE (SECOND TAB ON THE RIGHT). USING THE SAME TECHNIQUE
+// FOR GETTING RID OF THE "//" AS YOU DID FOR THE PREVIOUS SECTION,
+// DO THE SAME FOR THIS SECTION (LINES 1710-1792). WHEN RETRIEVING THE MIN
+// AND MAX VALUES FOR THE VARIABLES, IT MAY MAKE SENSE TO COMPILE THEM IN A
+// LIST TO KEEP THEM ORGANIZE. HERE, LET'S CREATE ONE (FOUND IN LINE 1796)!
+
+
+//______________START GET MIN AND MAX______________//
+// //min and max reducers
+// var minReducer = ee.Reducer.min();
+// var maxReducer = ee.Reducer.max();
+
+// //use the reducer to get the min and max of lst
+// var minLST = ee.Number(cLSTMay.reduceRegion({ // CHANGE 'cLSTMay' TO DESIRED MONTH
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var maxLST = ee.Number(cLSTMay.reduceRegion({ // CHANGE 'cLSTMay' TO DESIRED MONTH
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(minLST, 'Minimum LST')
+// print(maxLST, 'Maximum LST')
+
+// //use the reducer to get the min and max of ndvi
+// var minNDVI = ee.Number(cNDVIMay.reduceRegion({ // CHANGE 'cNDVIMay' TO DESIRED MONTH
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var maxNDVI = ee.Number(cNDVIMay.reduceRegion({ // CHANGE 'cNDVIMay' TO DESIRED MONTH
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(minNDVI, 'Minimum NDVI')
+// print(maxNDVI, 'Maximum NDVI')
+
+// //use the reducer to get the min and max of precipitation
+// var minPrecip = ee.Number(cPrecipMay.reduceRegion({ // CHANGE 'cPrecipMay' TO DESIRED MONTH
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var maxPrecip = ee.Number(cPrecipMay.reduceRegion({ // CHANGE 'cPrecipMay' TO DESIRED MONTH
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(minPrecip, 'Minimum Precipitation')
+// print(maxPrecip, 'Maximum Precipitation')
+
+// //use the reducer to get the min and max of humidity
+// var minHumidity = ee.Number(cHumidityMay.reduceRegion({ // CHANGE 'cHumidityMay' TO DESIRED MONTH
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var maxHumidity = ee.Number(cHumidityMay.reduceRegion({ // CHANGE 'cHumidityMay' TO DESIRED MONTH
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(minHumidity, 'Minimum Humidity')
+// print(maxHumidity, 'Maximum Humidity')
+
+// //use the reducer to get the min and max of soil moisture
+// var minSoilMoisture = ee.Number(cSoilMoistureMay.reduceRegion({ // CHANGE 'cSoilMoistureMay' TO DESIRED MONTH
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var maxSoilMoisture = ee.Number(cSoilMoistureMay.reduceRegion({ // CHANGE 'cSoilMoistureMay' TO DESIRED MONTH
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(minSoilMoisture, 'Minimum Soil Moisture')
+// print(maxSoilMoisture, 'Maximum Soil Moisture')
+//______________END GET MIN AND MAX______________//
+
+
+// HEY! HERE'S THAT LIST I MENTIONED...
+// LST MIN:
+// LST MAX:
+// _________
+// NDVI MIN:
+// NDVI MAX:
+// _________
+// PRECIP MIN:
+// PRECIP MAX:
+// _________
+// HUMIDITY MIN:
+// HUMIDITY MAX:
+// _________
+// SOIL MOISTURE MIN:
+// SOIL MOISTURE MAX:
+// _________
+
+// SO YOU MAY HAVE NOTICED THAT THERE ISN'T A SPACE FOR ELEVATION.
+// SINCE ELEVATION DATA IS NOT FREQUENTLY UPDATED (AS IT DOES NOT CHANGE
+// FREQUENTLY), THE MIN AND MAX VALUES FOR NORMALIZATION ARE ALREADY PLUGGED IN.
+
+
+// OK, NOW YOU'VE GOT ALL THESE NUMBERS. WHAT DO YOU DO WITH THEM NOW?
+
+
+// NOW WE HAVE TO USE THESE NUMBERS TO NORMALIZE THE ENVIRONMENTAL VARIABLES
+// ON A ZERO TO ONE SCALE. SO, WE USE THIS EXPRESSION TO DO SO:
+// (X - MIN) / (MAX - MIN)
+
+// USING THE TEMPLATE BELOW, PLUG IN THE CORRESPONDING MIN AND MAX VALUES WHERE
+// YOU SEE THE NUMBERS. MATHEMATICAL EXPRESSIONS WITHIN GEE REQUIRE YOU TO DEFINE
+// THE VARIABLE WITHIN THE EXPRESSION ITSELF (REGARDLESS IF YOU'VE DEFINED IT ELSEWHERE).
+// SO, YOU WILL HAVE TO DEFINE THE VARIABLE IN BRACKETS AFTER THE EXPRESSION.
+
+
+//______________START NORMALIZE VARIABLES______________//
+// //normalize environmental variables
+// var lstnormalizeMay = cLSTMay.expression('((lst - 5.805644531250039) / (38.746152343750055 - 5.805644531250039))', //CHANGE 'lstnormalizeMay' TO DESIRED MONTH
+//   {'lst': cLSTMay}) // CHANGE 'cLSTMay' TO DESIRED VARIABLE
+
+// var ndvinormalizeMay = cNDVIMay.expression('((ndvi + 0.5299306511878967) / (0.5744581818580627 + 0.5299306511878967))', //CHANGE 'ndvinormalizeMay' TO DESIRED MONTH
+//   {'ndvi': cNDVIMay}) // CHANGE 'cNDVIMay' TO DESIRED VARIABLE
+
+// var precipnormalizeMay = cPrecipMay.expression('((precip - 0.00016801075253169984) / (0.48912131786346436 - 0.00016801075253169984))', //CHANGE 'precipnormalizeMay' TO DESIRED MONTH
+//   {'precip': cPrecipMay}) // CHANGE 'cPrecipMay' TO DESIRED VARIABLE
+
+// var humiditynormalizeMay = cHumidityMay.expression('((humidity - 0.005282266531139612) / (0.009643768891692162 - 0.005282266531139612))', //CHANGE 'humiditynormalizeMay' TO DESIRED MONTH
+//   {'humidity': cHumidityMay}) // CHANGE 'cHumidityMay' TO DESIRED VARIABLE
+
+// var soilMoisturenormalizeMay = cSoilMoistureMay.expression('((soilmoisture - 8.977263450622559) / (41.53260803222656 - 8.977263450622559))', //CHANGE 'soilMoisturenormalizeMay' TO DESIRED MONTH
+//   {'soilmoisture': cSoilMoistureMay}) // CHANGE 'cSoilMoistureMay' TO DESIRED VARIABLE
+
+// YOU DON'T HAVE TO WORRY ABOUT CHANGING THE NUMBERS WITH ELEVATION,
+// JUST THE VARIABLE TO DESIRED MONTH
+// var elevationnormalizeMay = cElevationWestEur.expression('(((2378 - elevation) / (2258 + 4)))',
+//   {'elevation': cElevationWestEur})
+//______________END NORMALIZE VARIABLES______________//
+
+
+// YOU'RE DOING GREAT! JUST A FEW MORE STEPS...
+
+
+//______________WEIGHTING THE ENVIRONMENTAL VARIABLES______________//
+
+// OK, NOW WE HAVE THESE IMAGES OF NORMALIZED ENVIRONMENTAL VARIABLES.
+// WHERE DO WE GO FROM HERE? WELL, USING SOME RESULTS FROM THE MAXENT
+// STANDALONE MODEL, WE CAN WEIGHT THE ENVIRONMENTAL VARIABLES BASED ON
+// HOW MUCH EACH VARIABLE CONTRIBUTES TO THE MODEL. THIS STEP IS PRETTY EASY.
+// ALL YOU HAVE TO DO IS REPLACE THE NUMBER IN THE .multiply(.###) FUNCTION
+// TO APPLY THE APPROPRIATE WEIGHT. SINCE WE RAN THE MODEL BY MONTH,
+// YOU WILL FIND THE CORRESPONDING MONTHLY WEIGHTS IN THE TABLE BELOW.
+// APPLY THE MONTHLY WEIGHTS BASED ON THE DATE RANGE YOU CHOSE.
+
+// MONTH   LST   NDVI    PRECIPITATION   HUMIDITY    SOIL MOISTURE   ELEVATION
+// JAN     .007  .003    .015            .015        .041            .919
+// FEB     .018  .019    .070            .015        .021            .858
+// MAR     .199  .024    .156            .061        .012            .548
+// ARP     .056  .067    .036            .027        .021            .792
+// MAY     .133  .211    .146            .068        .034            .407
+// JUN     .202  .319    .018            .298        .095            .078
+// JUL     .203  .032    .028            .237        .075            .426
+// AUG     .278  .024    .017            .378        .090            .213
+// SEP     .336  .015    .015            .263        .206            .165
+// OCT     .427  .001    .204            .130        .068            .169
+// NOV     .289  .053    .012            .013        .193            .439
+// DEC     .127  .027    .037            .105        .043            .661
+
+
+//______________START WEIGHT VARIABLES______________//
+// //apply percent contribution weights to environmental variables
+// var lstMayWeight = lstnormalizeMay.multiply(.133) // AS BEFORE, CHANGE 'lstMayWeight' AND 'lstnormalizeMay' WITH CORRESPONDING MONTH AND REPEAT FOR OTHER WEIGHTED VARIABLES
+
+// var ndviMayWeight = ndvinormalizeMay.multiply(.211)
+
+// var precipitationMayWeight = precipnormalizeMay.multiply(.146)
+
+// var humidityMayWeight = humiditynormalizeMay.multiply(.068)
+
+// var soilMoistureMayWeight = soilMoisturenormalizeMay.multiply(.034)
+
+// var elevationMayWeight = elevationnormalizeMay.multiply(.407)
+
+// var mayWeight = ee.Image.cat([lstMayWeight,
+//                               ndviMayWeight,
+//                               humidityMayWeight,
+//                               soilMoistureMayWeight,
+//                               precipitationMayWeight,
+//                               elevationMayWeight]) // CHANGE 'mayWeight' TO CORRESPONDING MONTH AND ENSURE THESE VARIABLES MATCH THE ONES ABOVE
+//______________END WEIGHT VARIABLES______________//
+
+
+// NOW, WE SIMPLY ADD ALL OF THESE WEIGHTED VARIABLES TOGETHER INTO ONE IMAGE
+
+
+//______________START ADD WEIGHTED VARIABLES______________//
+// //sum them all together
+// var maySuit = mayWeight.select('LST_Day_1km')
+//                         .add(mayWeight.select('NDVI'))
+//                         .add(mayWeight.select('precipitationCal'))
+//                         .add(mayWeight.select('Qair_f_inst'))
+//                         .add(mayWeight.select('SoilMoi0_10cm_inst'))
+//                         .add(mayWeight.select('constant'))
+//                         .rename('suitability') // CHANGE 'maySuit' AND 'mayWeight' TO CORRESPOND WITH DESIRED MONTH
+//______________END ADD WEIGHTED VARIABLES______________//
+
+
+// AWESOME! WE'RE IN THE HOME STRETCH NOW
+
+
+//______________NORMALIZING THE WEIGHTED SUITABILITY IMAGE______________//
+
+// NOW WE'RE GOING BACK TO NORMALIZING (NOT AGAIN!). BUT DON'T WORRY,
+// WE'LL ONLY NEED TO DO THIS ONCE (PHEW!). IN THIS STEP, WE'RE GOING TO
+// FIND THE MIN AND MAX VALUES OF THE WEIGHTED SUITABILITY IMAGE TO PUT
+// IT ON A SCALE FROM ZERO TO ONE. USING THE SAME STEPS FROM NORMALIZING
+// THE ENVIRONMENTAL VARIABLES, USE THE TEMPLATE BELOW TO NORMALIZE
+// THE WEIGHTED SUITABILITY IMAGE.
+
+
+//______________START GET MIN AND MAX______________//
+// //min and max reducers
+// var minReducer = ee.Reducer.min();
+// var maxReducer = ee.Reducer.max();
+
+// // Use the reducer to get the min and max of the image
+// var min = ee.Number(maySuit.reduceRegion({
+//   reducer: minReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// var max = ee.Number(maySuit.reduceRegion({
+//   reducer: maxReducer,
+//   bestEffort: true,
+//   scale: 1000
+// }));
+
+// print(min, 'Minimum')
+// print(max, 'Maximum')
+//______________END GET MIN AND MAX______________//
+
+
+// SUITABILITY MIN:
+// SUITABILITY MAX:
+// _________
+
+
+// GREAT! NOW, WE NEED TO PLUG IN THOSE MIN AND MAX VALUES IN THE NORMALIZATION EQUATION BELOW
+// (REFER TO THE PREVIOUS STEP FOR NORMALIZING THE ENVIRONMENTAL VARIABLES IF NEEDED)
+
+
+//______________START NORMALIZE SUITABILITY______________//
+// //normalize on a 0 to 1 scale
+// var maySuitFinal = mayWeight.expression('((suitability - 0.1513682426598958) / (0.8329625483864924 - 0.1513682426598958))',
+// {'suitability': maySuit})
+//______________END NORMALIZE SUITABILITY______________//
+
+
+// OK, ONLY ABOUT 58 MORE STEPS TO GO...
+
+
+
+
+
+
+
+
+// JUST KIDDING! NOW ALL WE HAVE TO DO IS SIMPLY ADD THE FINAL SUITABILITY MODEL TO THE MAP.
+// THE VISUALIZATION PARAMETERS ARE ALREADY DEFINED, SO ALL YOU NEED TO CHANGE IS THE
+// MONTH TO MATCH YOUR INPUT.
+
+
+// Map.addLayer(maySuitFinal, suitability, 'May Suitability', false) // MAKE SURE TO CHANGE 'maySuitFinal' AND 'May Suitability'
+
+
+// AND YOU'RE DONE! IF YOU WANT TO GO BACK TO THE ORIGINAL CODE OR ARE IN THE PROCESS
+// OF IMPLEMENTING A NEW HABITAT SUITABILITY MODEL, REMEMBER TO LEAVE THE "//" IN FRONT
+// OF THOSE LINES OF CODE.
+
+//=======================================================================================================//
+//================================VISUALIZING HABITAT SUITABILITY BY MONTH===============================//
+//=======================================================================================================//
+
+//add them all to the map
+var suitability_layers = [
+ui.Map.Layer(junSuitFinal, suitability, 'June Suitability', false),
+ui.Map.Layer(julSuitFinal, suitability, 'July Suitability', false),
+ui.Map.Layer(augSuitFinal, suitability, 'August Suitability', false),
+ui.Map.Layer(sepSuitFinal, suitability, 'September Suitability', false),
+ui.Map.Layer(octSuitFinal, suitability, 'October Suitability', false),
+ui.Map.Layer(novSuitFinal, suitability, 'November Suitability', false),
+ui.Map.Layer(decSuitFinal, suitability, 'December Suitability', false),
+ui.Map.Layer(janSuitFinal, suitability, 'January Suitability', false),
+ui.Map.Layer(febSuitFinal, suitability, 'February Suitability', false),
+ui.Map.Layer(marSuitFinal, suitability, 'March Suitability', false),
+ui.Map.Layer(aprSuitFinal, suitability, 'April Suitability', false),
+ui.Map.Layer(maySuitFinal, suitability, 'May Suitability', false)
+]
+
+//create a panel that holds each month's habitat suitability model layers
+var suitability_panel = ui.Panel({
+  style: {width: '300px',
+          height: '300px',
+          position: 'top-right',
+          color: '#002e4d',
+          backgroundColor: '#150E07',
+          border: '10px groove #B28355',
+          shown: false
+  }});
+
+//add suitabililty panel to the map
+Map.add(suitability_panel);
+
+//add a title "Monthly Suitability Models"
+suitability_panel.add(ui.Label({
+            value: 'Monthly Suitability Models',
+            style: {fontSize: '18px',
+            color: '#cf8c4a',
+            backgroundColor: '#150E07',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            stretch: 'horizontal'
+            }}));
+
+//create a function that retrieves habitat suitability map
+var nav_2 = suitability_layers.map(function(layer){
+  var name = layer.getName();
+  return ui.Button({
+    label: name,
+    onClick: function(){
+    Map.layers().forEach(function(mapLayer){
+    mapLayer.setShown(mapLayer.getName() == name);});},
+    style: {stretch: 'horizontal'}
+  });});
+
+//add this function to the suitability panel 
+suitability_panel.add(ui.Panel({
+  widgets: nav_2,
+  style: {color: '#000000',
+          backgroundColor: '#150E07'
+  }
+}));
+
+//create and add a button to hide the panel
+suitability_panel.add(ui.Button(
+  {label: 'CLOSE',
+  style: {color: '#000000',
+          stretch: 'horizontal'},
+  onClick: function() {
+  suitability_panel.style().set('shown', false);
+  suitability_button.style().set('shown', true);  
+  }
+}));
+
+//create a button to reveal the layers panel
+var suitability_button = ui.Button({
+  label: 'HABITAT SUITABILITY MODEL',
+  style: {position: 'bottom-center',
+          color: '#000000',
+          padding: '0px'
+          },
+  onClick: function() {
+    //hide the panel
+    suitability_button.style().set('shown', false);
+    //reveal the panel
+    suitability_panel.style().set('shown', true);
+  }
+});
+
+//add button to the map
+Map.add(suitability_button);
+
+//=======================================================================================================//
+//=========================================CITIZEN SCIENCE DATA==========================================//
+//=======================================================================================================//
+
+//add monthly citizen science data
+Map.addLayer(Jun16, {color: '2ECC71'}, 'June 2016', false);
+Map.addLayer(Jul16, {color: '2ECC71'}, 'July 2016', false);
+Map.addLayer(Aug16, {color: '2ECC71'}, 'August 2016', false);
+Map.addLayer(Sep16, {color: 'c8511e'}, 'September 2016', false);
+Map.addLayer(Oct16, {color: 'c8511e'}, 'October 2016', false);
+Map.addLayer(Nov16, {color: 'c8511e'}, 'November 2016',false);
+Map.addLayer(Dec16, {color: '85C1E9'}, 'December 2016', false);
+Map.addLayer(Jan17, {color: '85C1E9'}, 'January 2017', false);
+Map.addLayer(Feb17, {color: '85C1E9'}, 'February 2017', false);
+Map.addLayer(Mar17, {color: 'C39BD3'}, 'March 2017', false);
+Map.addLayer(Apr17, {color: 'C39BD3'}, 'April 2017', false);
+Map.addLayer(May17, {color: 'C39BD3'}, 'May 2017', false);
+Map.addLayer(Jun17, {color: '2ECC71'}, 'June 2017', false);
+Map.addLayer(Jul17, {color: '2ECC71'}, 'July 2017', false);
+Map.addLayer(Aug17, {color: '2ECC71'}, 'August 2017', false);
+//
+//add GLOBE data
+Map.addLayer(GLOBE, {color: 'F7DC6F'}, 'GLOBE Data', false);
+
+// //create a variable containing citizen science layers
+var citizenScience_layers = [
+ui.Map.Layer(Jun16, {color: '2ECC71'}, 'June 2016', false),
+ui.Map.Layer(Jul16, {color: '2ECC71'}, 'July 2016', false),
+ui.Map.Layer(Aug16, {color: '2ECC71'}, 'August 2016', false),
+ui.Map.Layer(Sep16, {color: 'c8511e'}, 'September 2016', false),
+ui.Map.Layer(Oct16, {color: 'c8511e'}, 'October 2016', false),
+ui.Map.Layer(Nov16, {color: 'c8511e'}, 'November 2016',false),
+ui.Map.Layer(Dec16, {color: '85C1E9'}, 'December 2016', false),
+ui.Map.Layer(Jan17, {color: '85C1E9'}, 'January 2017', false),
+ui.Map.Layer(Feb17, {color: '85C1E9'}, 'February 2017', false),
+ui.Map.Layer(Mar17, {color: 'C39BD3'}, 'March 2017', false),
+ui.Map.Layer(Apr17, {color: 'C39BD3'}, 'April 2017', false),
+ui.Map.Layer(May17, {color: 'C39BD3'}, 'May 2017', false),
+ui.Map.Layer(Jun17, {color: '2ECC71'}, 'June 2017', false),
+ui.Map.Layer(Jul17, {color: '2ECC71'}, 'July 2017', false),
+ui.Map.Layer(Aug17, {color: '2ECC71'}, 'August 2017', false),
+//
+//add GLOBE data
+ui.Map.Layer(GLOBE, {color: 'F7DC6F'}, 'GLOBE Data', false)
+]
+
+//create a panel that holds each month's citizen science data layers
+var citizenScience_panel = ui.Panel({
+  style: {width: '300px',
+          height: '300px',
+          position: 'bottom-right',
+          color: '#002e4d',
+          backgroundColor: '#150E07',
+          border: '10px groove #B28355',
+          shown: false
+  }});
+          
+//add citizen science panel to the map
+Map.add(citizenScience_panel)
+
+//add a title "Citizen Science Data"
+citizenScience_panel.add(ui.Label({
+            value: 'Citizen Science Data',
+            style: {fontSize: '24px',
+            color: '#cf8c4a',
+            backgroundColor: '#150E07',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            stretch: 'horizontal'
+            }}));
+
+//create a function that retrieves citizen science data
+var nav_3 = citizenScience_layers.map(function(layer){
+  var name = layer.getName();
+  return ui.Button({
+    label: name,
+    onClick: function(){
+    Map.layers().forEach(function(mapLayer){
+    mapLayer.setShown(mapLayer.getName() == name);});},
+    style: {stretch: 'horizontal'}
+  });});
+
+//add this function to the citizen science panel 
+citizenScience_panel.add(ui.Panel({
+  widgets: nav_3,
+  style: {color: '#000000',
+          backgroundColor: '#150E07'
+  }
+}));
+
+//create and add a button to hide the panel
+citizenScience_panel.add(ui.Button(
+  {label: 'CLOSE',
+  style: {color: '#000000',
+          stretch: 'horizontal'},
+  onClick: function() {
+  citizenScience_panel.style().set('shown', false);
+  citizenScience_button.style().set('shown', true);  
+  }
+}));
+
+//create a button to reveal the citizen science panel
+var citizenScience_button = ui.Button({
+  label: 'CITIZEN SCIENCE DATA',
+  style: {position: 'bottom-right',
+          color: '#000000',
+          padding: '0px'
+          },
+  onClick: function() {
+    //hide the panel
+    citizenScience_button.style().set('shown', false);
+    //reveal the panel
+    citizenScience_panel.style().set('shown', true);
+  }
+});
+//add button to the map
+Map.add(citizenScience_button);
+
+
+//====================================================================================================================================
+//====================================================================================================================================
+//====================================================================================================================================
+
+
+//_________________________________________THIS IS THE END___________________________________________//
+
+
+
+
+
+
+
+// OH, YOU'RE STILL HERE?
+
+// WHAT DO YOU WANT, A PICTURE OF A MOSQUITO OR SOMETHING?
+
+
+
+
+
+
+
+
+    //                 ,-.
+    //     `._        /  |        ,
+    //         `--._  ,   '    _,-'
+    // _       __  `.|  / ,--'
+    //   `-._,-'  `-. \ : /
+    //       ,--.-.-`'.'.-.,_-
+    //     _ `--'-'-;.'.'-'`--
+    // _,-' `-.__,-' / : \
+    //             _,'|  \ `--._
+    //       _,--'   '   .     `-.
+    //     ,'         \  |        `
+    
+//                           _ _            
+//                           (_) |           
+// _ __ ___   ___  ___  __ _ _| |_ ___  
+// | '_ ` _ \ / _ \/ __|/ _` | | __/   \
+// | | | | | | (_) \__ \ (_| | | || (_)|
+// |_| |_| |_|\___/|___/\__, |_|\__\___/
+//                         | |               
+//                         |_|               
+    
+    
+// ***END***
